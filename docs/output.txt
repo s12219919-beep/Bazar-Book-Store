@@ -1,0 +1,213 @@
+Bazar Book Store - Testing Results
+=================================
+Thu Nov 26 20:41:19 IST 2026
+
+Test 1: Search Distributed Systems
+[{"id":1,"title":"How to get a good grade in DOS in 40 minutes a day"},{"id":2,"title":"RPCs for Noobs"}]
+
+
+Test 2: Search Undergraduate School
+[{"id":3,"title":"Xen and the Art of Surviving Undergraduate School"},{"id":4,"title":"Cooking for the Impatient Undergrad"}]
+
+
+Test 3: Book Information Before Purchase
+{"id":2,"price":50.0,"quantity":4,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+
+Test 4: Purchase Book
+{"book":"RPCs for Noobs","message":"Purchase successful","order_id":2,"price":50.0,"remaining_quantity":3}
+
+
+Test 5: Book Information After Purchase
+{"id":2,"price":50.0,"quantity":3,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+
+Test 6: Book Not Found
+HTTP/1.1 404 NOT FOUND
+Server: Werkzeug/3.1.9 Python/3.12.16
+Date: Thu, 26 Nov 2026 18:41:20 GMT
+Content-Type: application/json
+Content-Length: 27
+Connection: close
+
+{"error":"Book not found"}
+
+
+Test 7: Purchase Nonexistent Book
+HTTP/1.1 404 NOT FOUND
+Server: Werkzeug/3.1.9 Python/3.12.16
+Date: Thu, 26 Nov 2026 18:41:20 GMT
+Content-Type: application/json
+Content-Length: 27
+Connection: close
+
+{"error":"Book not found"}
+
+
+Frontend Service Logs
+INFO:FrontendService:Frontend Service is starting...
+ * Serving Flask app 'app'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.18.0.4:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 17:57:56] "GET /search/distributed%20systems HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 17:58:54] "GET /info/2 HTTP/1.1" 200 -
+INFO:FrontendService:bought book RPCs for Noobs
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 17:59:43] "POST /purchase/2 HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:00:44] "GET /info/2 HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:02:22] "[33mGET /info/99 HTTP/1.1[0m" 404 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:02:34] "[33mPOST /purchase/99 HTTP/1.1[0m" 404 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:03:23] "[31m[1mPOST /purchase/2 HTTP/1.1[0m" 409 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:19] "GET /search/distributed%20systems HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:19] "GET /search/Undergraduate%20School HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:20] "GET /info/2 HTTP/1.1" 200 -
+INFO:FrontendService:bought book RPCs for Noobs
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:20] "POST /purchase/2 HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:20] "GET /info/2 HTTP/1.1" 200 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:20] "[33mGET /info/99 HTTP/1.1[0m" 404 -
+INFO:werkzeug:172.18.0.1 - - [26/Nov/2026 18:41:20] "[33mPOST /purchase/99 HTTP/1.1[0m" 404 -
+
+Test 8: Out of Stock
+Set stock to zero:
+{"book":{"id":2,"price":50.0,"quantity":0,"title":"RPCs for Noobs","topic":"Distributed Systems"},"message":"Book updated successfully"}
+
+Attempt to purchase:
+HTTP/1.1 409 CONFLICT
+Server: Werkzeug/3.1.9 Python/3.12.16
+Date: Thu, 26 Nov 2026 18:44:43 GMT
+Content-Type: application/json
+Content-Length: 61
+Connection: close
+
+{"error":"Book is out of stock","message":"Purchase failed"}
+
+Restore stock:
+{"book":{"id":2,"price":50.0,"quantity":3,"title":"RPCs for Noobs","topic":"Distributed Systems"},"message":"Book updated successfully"}
+
+
+Test 9: Concurrent Purchases
+Stock before concurrent purchases:
+{"id":2,"price":50.0,"quantity":3,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Sending 5 simultaneous purchase requests:
+Request 2: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":3,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+Request 4: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":4,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+Request 1: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":5,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+Request 3: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":6,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+Request 5: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":7,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+
+Stock after concurrent purchases:
+{"id":2,"price":50.0,"quantity":2,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Saved orders:
+[(1, 2, 'RPCs for Noobs', 50.0, '2026-11-26T17:59:43'), (2, 2, 'RPCs for Noobs', 50.0, '2026-11-26T18:41:20'), (3, 2, 'RPCs for Noobs', 50.0, '2026-11-26T18:45:28'), (4, 2, 'RPCs for Noobs', 50.0, '2026-11-26T18:45:28'), (5, 2, 'RPCs for Noobs', 50.0, '2026-11-26T18:45:28'), (6, 2, 'RPCs for Noobs', 50.0, '2026-11-26T18:45:28'), (7, 2, 'RPCs for Noobs', 50.0, '2026-11-26T18:45:28')]
+
+
+Test 10: Concurrent Purchases After Fix
+Stock before concurrent purchases:
+{"id":2,"price":50.0,"quantity":5,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Sending 7 simultaneous purchase requests:
+Request 6: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":1,"price":50.0,"remaining_quantity":4}
+ HTTP 200
+Request 1: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":2,"price":50.0,"remaining_quantity":3}
+ HTTP 200
+Request 2: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":3,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+Request 3: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":4,"price":50.0,"remaining_quantity":1}
+ HTTP 200
+Request 5: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":5,"price":50.0,"remaining_quantity":0}
+ HTTP 200
+Request 7: {"error":"Book is out of stock","message":"Purchase failed"}
+ HTTP 409
+Request 4: {"error":"Book is out of stock","message":"Purchase failed"}
+ HTTP 409
+
+Stock after concurrent purchases:
+{"id":2,"price":50.0,"quantity":0,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Saved orders:
+[(1, 2, 'RPCs for Noobs', 50.0, '2026-11-26T19:03:01'), (2, 2, 'RPCs for Noobs', 50.0, '2026-11-26T19:03:01'), (3, 2, 'RPCs for Noobs', 50.0, '2026-11-26T19:03:01'), (4, 2, 'RPCs for Noobs', 50.0, '2026-11-26T19:03:01'), (5, 2, 'RPCs for Noobs', 50.0, '2026-11-26T19:03:01')]
+
+
+=================================
+Final Docker Compose Testing
+=================================
+Thu Nov 26 23:23:38 IST 2026
+
+Running services:
+NAME               IMAGE                       COMMAND           SERVICE    CREATED              STATUS              PORTS
+catalog-service    bazar-book-store-catalog    "python app.py"   catalog    About a minute ago   Up About a minute   0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp
+frontend-service   bazar-book-store-frontend   "python app.py"   frontend   About a minute ago   Up About a minute   0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp
+order-service      bazar-book-store-order      "python app.py"   order      About a minute ago   Up About a minute   0.0.0.0:5002->5002/tcp, [::]:5002->5002/tcp
+
+Frontend health:
+{"service":"Frontend Service","status":"running"}
+
+Catalog health:
+{"service":"Catalog Service","status":"running"}
+
+Order health:
+{"service":"Order Service","status":"running"}
+
+Search books:
+[{"id":1,"title":"How to get a good grade in DOS in 40 minutes a day"},{"id":2,"title":"RPCs for Noobs"}]
+
+Book information before purchase:
+{"id":2,"price":50.0,"quantity":5,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Purchase book:
+{"book":"RPCs for Noobs","message":"Purchase successful","order_id":1,"price":50.0,"remaining_quantity":4}
+
+Book information after purchase:
+{"id":2,"price":50.0,"quantity":4,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Frontend logs:
+frontend-service  |  * Serving Flask app 'app'
+frontend-service  |  * Debug mode: off
+frontend-service  | INFO:FrontendService:Frontend Service is starting...
+frontend-service  | INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+frontend-service  |  * Running on all addresses (0.0.0.0)
+frontend-service  |  * Running on http://127.0.0.1:5000
+frontend-service  |  * Running on http://172.19.0.4:5000
+frontend-service  | INFO:werkzeug:[33mPress CTRL+C to quit[0m
+frontend-service  | INFO:werkzeug:172.19.0.1 - - [26/Nov/2026 21:22:38] "GET /health HTTP/1.1" 200 -
+frontend-service  | INFO:werkzeug:172.19.0.1 - - [26/Nov/2026 21:23:38] "GET /health HTTP/1.1" 200 -
+frontend-service  | INFO:werkzeug:172.19.0.1 - - [26/Nov/2026 21:23:38] "GET /search/distributed%20systems HTTP/1.1" 200 -
+frontend-service  | INFO:werkzeug:172.19.0.1 - - [26/Nov/2026 21:23:38] "GET /info/2 HTTP/1.1" 200 -
+frontend-service  | INFO:FrontendService:bought book RPCs for Noobs
+frontend-service  | INFO:werkzeug:172.19.0.1 - - [26/Nov/2026 21:23:38] "POST /purchase/2 HTTP/1.1" 200 -
+frontend-service  | INFO:werkzeug:172.19.0.1 - - [26/Nov/2026 21:23:38] "GET /info/2 HTTP/1.1" 200 -
+
+
+Final Concurrency Test
+Stock before purchases:
+{"id":2,"price":50.0,"quantity":4,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Request 2: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":2,"price":50.0,"remaining_quantity":3}
+ HTTP 200
+Request 5: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":3,"price":50.0,"remaining_quantity":2}
+ HTTP 200
+Request 3: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":4,"price":50.0,"remaining_quantity":1}
+ HTTP 200
+Request 1: {"book":"RPCs for Noobs","message":"Purchase successful","order_id":5,"price":50.0,"remaining_quantity":0}
+ HTTP 200
+Request 4: {"error":"Book is out of stock","message":"Purchase failed"}
+ HTTP 409
+Request 6: {"error":"Book is out of stock","message":"Purchase failed"}
+ HTTP 409
+
+Stock after purchases:
+{"id":2,"price":50.0,"quantity":0,"title":"RPCs for Noobs","topic":"Distributed Systems"}
+
+Saved orders:
+[(1, 2, 'RPCs for Noobs', 50.0, '2026-11-26T21:23:38'), (2, 2, 'RPCs for Noobs', 50.0, '2026-11-26T21:25:40'), (3, 2, 'RPCs for Noobs', 50.0, '2026-11-26T21:25:40'), (4, 2, 'RPCs for Noobs', 50.0, '2026-11-26T21:25:40'), (5, 2, 'RPCs for Noobs', 50.0, '2026-11-26T21:25:40')]
+
