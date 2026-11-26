@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from database import get_connection, initialize_database
 import logging
@@ -10,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CatalogService")
 
 
-# Initialize the database when the service starts
+# Initialize the database
 initialize_database()
 
 
@@ -45,7 +44,8 @@ def search_books(topic):
         for book in books
     ]
 
-    logger.info("Search request: topic=%s, results=%d", topic, len(results))
+    logger.info("Search request: topic=%s, results=%d",
+                topic, len(results))
 
     return jsonify(results), 200
 
@@ -82,7 +82,7 @@ def book_info(item_id):
     return jsonify(result), 200
 
 
-# Catalog query operation: search by topic or item
+# Query catalog by topic or item
 @app.route("/query", methods=["GET"])
 def query_catalog():
     topic = request.args.get("topic")
@@ -114,7 +114,9 @@ def query_catalog():
         try:
             item_id = int(item_id)
         except ValueError:
-            return jsonify({"error": "Invalid item number"}), 400
+            return jsonify({
+                "error": "Invalid item number"
+            }), 400
 
         conn = get_connection()
 
@@ -126,7 +128,9 @@ def query_catalog():
         conn.close()
 
         if book is None:
-            return jsonify({"error": "Book not found"}), 404
+            return jsonify({
+                "error": "Book not found"
+            }), 404
 
         return jsonify(dict(book)), 200
 
@@ -135,94 +139,112 @@ def query_catalog():
     }), 400
 
 
-# Catalog update operation: change price or stock quantity
+# Update price or stock safely
 @app.route("/update/<int:item_id>", methods=["PUT"])
 def update_book(item_id):
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
-        return jsonify({"error": "A JSON object is required"}), 400
+        return jsonify({
+            "error": "A JSON object is required"
+        }), 400
 
     conn = get_connection()
 
-    book = conn.execute(
-        "SELECT * FROM books WHERE id = ?",
-        (item_id,)
-    ).fetchone()
+    try:
+        # Start transaction before reading stock
+        conn.execute("BEGIN IMMEDIATE")
 
-    if book is None:
-        conn.close()
-        return jsonify({"error": "Book not found"}), 404
+        book = conn.execute(
+            "SELECT * FROM books WHERE id = ?",
+            (item_id,)
+        ).fetchone()
 
-    if "price" in data and "quantity_change" in data:
-        conn.close()
-        return jsonify({
-            "error": "Update price or quantity, one operation at a time"
-        }), 400
-
-    if "price" in data:
-        try:
-            new_price = float(data["price"])
-        except (ValueError, TypeError):
-            conn.close()
-            return jsonify({"error": "Price must be a number"}), 400
-
-        if new_price < 0:
-            conn.close()
-            return jsonify({"error": "Price cannot be negative"}), 400
-
-        conn.execute(
-            "UPDATE books SET price = ? WHERE id = ?",
-            (new_price, item_id)
-        )
-
-    elif "quantity_change" in data:
-        try:
-            change = int(data["quantity_change"])
-        except (ValueError, TypeError):
-            conn.close()
+        if book is None:
             return jsonify({
-                "error": "Quantity change must be an integer"
+                "error": "Book not found"
+            }), 404
+
+        if "price" in data and "quantity_change" in data:
+            return jsonify({
+                "error": "Update price or quantity, one operation at a time"
             }), 400
 
-        new_quantity = book["quantity"] + change
+        if "price" in data:
+            try:
+                new_price = float(data["price"])
+            except (ValueError, TypeError):
+                return jsonify({
+                    "error": "Price must be a number"
+                }), 400
 
-        if new_quantity < 0:
-            conn.close()
+            if new_price < 0:
+                return jsonify({
+                    "error": "Price cannot be negative"
+                }), 400
+
+            conn.execute(
+                "UPDATE books SET price = ? WHERE id = ?",
+                (new_price, item_id)
+            )
+
+        elif "quantity_change" in data:
+            try:
+                change = int(data["quantity_change"])
+            except (ValueError, TypeError):
+                return jsonify({
+                    "error": "Quantity change must be an integer"
+                }), 400
+
+            new_quantity = book["quantity"] + change
+
+            if new_quantity < 0:
+                return jsonify({
+                    "error": "Book is out of stock",
+                    "message": "Purchase failed"
+                }), 409
+
+            conn.execute(
+                "UPDATE books SET quantity = ? WHERE id = ?",
+                (new_quantity, item_id)
+            )
+
+        else:
             return jsonify({
-                "error": "Stock quantity cannot be negative"
+                "error": "Provide price or quantity_change"
             }), 400
 
-        conn.execute(
-            "UPDATE books SET quantity = ? WHERE id = ?",
-            (new_quantity, item_id)
-        )
+        # Read updated information before releasing the lock
+        updated_book = conn.execute(
+            "SELECT * FROM books WHERE id = ?",
+            (item_id,)
+        ).fetchone()
 
-    else:
-        conn.close()
+        result = dict(updated_book)
+
+        # Commit the transaction
+        conn.commit()
+
+        logger.info("Book updated: item_id=%d", item_id)
+
         return jsonify({
-            "error": "Provide price or quantity_change"
-        }), 400
+            "message": "Book updated successfully",
+            "book": result
+        }), 200
 
-    conn.commit()
+    except Exception:
+        conn.rollback()
 
-    updated_book = conn.execute(
-        "SELECT * FROM books WHERE id = ?",
-        (item_id,)
-    ).fetchone()
+        logger.exception("Failed to update book")
 
-    result = dict(updated_book)
-    conn.close()
+        return jsonify({
+            "error": "Database update failed"
+        }), 500
 
-    logger.info("Book updated: item_id=%d", item_id)
-
-    return jsonify({
-        "message": "Book updated successfully",
-        "book": result
-    }), 200
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
     logger.info("Catalog Service is starting...")
     app.run(host="0.0.0.0", port=5001, threaded=True)
-
