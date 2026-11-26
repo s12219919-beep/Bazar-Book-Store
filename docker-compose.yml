@@ -1,0 +1,49 @@
+services:
+  catalog:
+    build: ./catalog
+    container_name: catalog-service
+    ports:
+      - "5001:5001"
+    environment:
+      CATALOG_DB: /data/catalog.db
+    volumes:
+      - catalog_data:/data
+    networks:
+      - bazar-network
+
+  order:
+    build: ./order
+    container_name: order-service
+    ports:
+      - "5002:5002"
+    environment:
+      CATALOG_URL: http://catalog:5001
+      ORDER_DB: /data/orders.db
+    volumes:
+      - order_data:/data
+    depends_on:
+      - catalog
+    networks:
+      - bazar-network
+
+  frontend:
+    build: ./frontend
+    container_name: frontend-service
+    ports:
+      - "5000:5000"
+    environment:
+      CATALOG_URL: http://catalog:5001
+      ORDER_URL: http://order:5002
+    depends_on:
+      - catalog
+      - order
+    networks:
+      - bazar-network
+
+volumes:
+  catalog_data:
+  order_data:
+
+networks:
+  bazar-network:
+    driver: bridge
